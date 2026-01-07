@@ -56,9 +56,11 @@ public:
 			string msg(buffer);
 			unique_lock<mutex> lock(mtx); // lock to protect output operations
 			{
-				cout << "Client " << client_ip << " socket:" << client_fd << " says " << msg << endl;
+				cout << "Client " << client_ip << " socket:" << client_fd
+					<< " handled by thread " << std::this_thread::get_id()
+					<< " says " << msg << endl;
 			}
-			string echo_msg = "Server has received your message: " + msg;
+			string echo_msg = "Server has received your message";
 			if (!send_data(echo_msg)) {
 				break;
 			}

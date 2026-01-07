@@ -3,7 +3,7 @@
 #include "Tcpserver.h"
 using namespace std;
 
-Tcpserver::Tcpserver(int port):server_fd(-1),server_port(port){}
+Tcpserver::Tcpserver(int port,int thread_count):server_fd(-1),server_port(port),tp(thread_count) {}
 Tcpserver::~Tcpserver()
 	{
 		if(server_fd!=-1)

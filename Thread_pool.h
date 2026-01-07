@@ -25,7 +25,7 @@ public:
         {
             std::unique_lock<std::mutex> lock(mtx);
             if (stop)
-                throw std::runtime_error("œﬂ≥Ã≥ÿ“—Õ£÷π");
+                throw std::runtime_error("thread pool is stoped");
             task_queue.emplace(std::move(task));
         }
         condition.notify_one();
