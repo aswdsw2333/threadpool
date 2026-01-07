@@ -8,5 +8,8 @@ Tcpserver::~Tcpserver()
 	{
 		if(server_fd!=-1)
 			close(server_fd);
+
+
+
 	}
 	
