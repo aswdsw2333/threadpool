@@ -6,12 +6,12 @@ using namespace std;
 
 int main()
 {
-	Tcpserver server(5005);
-	thread server_thread([&server]() {
-		server.Start();
-		});
+	//Tcpserver server(5005);
+	//thread server_thread([&server]() {
+	//	server.Start();
+	//	});
 	this_thread::sleep_for(chrono::seconds(1)); // ensure server starts first
-	const int COUNT_CLIENT = 5;
+	const int COUNT_CLIENT = 10;
 	vector<thread> Client_threads;
 	for (int i = 0; i < COUNT_CLIENT; i++)
 	{
@@ -52,7 +52,7 @@ int main()
 	this_thread::sleep_for(chrono::seconds(1));
 	// To terminate server thread before program exit, implement shutdown logic in Tcpserver (recommended)
 	// For now detach or let program end (note: server thread will continue running)
-	if (server_thread.joinable()) server_thread.detach();
+	//if (server_thread.joinable()) server_thread.detach();
 
 	return 0;
 }
