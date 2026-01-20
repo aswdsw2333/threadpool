@@ -75,7 +75,21 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <ItemGroup>
+    <ClCompile Include="Channel.cpp" />
+    <ClCompile Include="epoll.cpp" />
+    <ClCompile Include="EventLoop.cpp" />
+    <ClCompile Include="Eventloopthread.cpp" />
+    <ClCompile Include="EventLoopThreadPool.cpp" />
     <ClCompile Include="main_epoll_basic.cpp" />
+    <ClCompile Include="Tcpserver_epoll.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Channel.h" />
+    <ClInclude Include="epoll.h" />
+    <ClInclude Include="EventLoop.h" />
+    <ClInclude Include="Eventloopthread.h" />
+    <ClInclude Include="EventLoopThreadPool.h" />
+    <ClInclude Include="Tcpserver_epoll.h" />
   </ItemGroup>
   <ItemDefinitionGroup />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
