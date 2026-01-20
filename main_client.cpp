@@ -6,10 +6,6 @@ using namespace std;
 
 int main()
 {
-	//Tcpserver server(5005);
-	//thread server_thread([&server]() {
-	//	server.Start();
-	//	});
 	this_thread::sleep_for(chrono::seconds(1)); // ensure server starts first
 	const int COUNT_CLIENT = 10;
 	vector<thread> Client_threads;
@@ -25,7 +21,7 @@ int main()
 					cout << "Failed to connect to server" << endl;
 					return;
 				}
-				string msg = "Hello " + to_string(i);
+				string msg = "Hello form" + to_string(i);
 				client.send_data(msg);
 
 				// 3. 关键点：接收服务器响应
@@ -35,7 +31,7 @@ int main()
 
 				// 4. 模拟长连接：让前 4 个客户端占住线程不放
 				// 这样第 5 个客户端就必须在队列里等
-				this_thread::sleep_for(chrono::seconds(10));
+				this_thread::sleep_for(chrono::seconds(1000));
 
 				
 				// socket will be closed when client is destructed

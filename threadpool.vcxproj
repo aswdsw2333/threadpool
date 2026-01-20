@@ -76,7 +76,7 @@
   <PropertyGroup Label="UserMacros" />
   <ItemGroup>
     <ClCompile Include="Clientsession.cpp" />
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="main_client.cpp" />
     <ClCompile Include="Thread_pool.cpp" />
     <ClCompile Include="Tcpclient.cpp" />
     <ClCompile Include="Tcpserver.cpp" />
