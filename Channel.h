@@ -25,6 +25,10 @@ public:
     void disableAll(); // 新增：取消所有事件
     void remove();     // 新增：从 Loop 中移除自己
     void setReadCallback(EventCallback cb) { readCallback_ = std::move(cb); }
+    void setWriteCallback(EventCallback cb) { writeCallback_ = std::move(cb); }
+    void enableWriting() { events_ |= EPOLLOUT; update(); }
+    void disableWriting() { events_ &= ~EPOLLOUT; update(); }
+    bool isWriting() const { return events_ & EPOLLOUT; }
 
 private:
     void update();
@@ -35,5 +39,7 @@ private:
     uint32_t revents_;
     int index_;
     EventCallback readCallback_;
+    EventCallback writeCallback_;
+
 };
 

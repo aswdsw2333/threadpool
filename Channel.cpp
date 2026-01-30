@@ -23,6 +23,10 @@ void Channel::handleEvent() {
     if (revents_ & EPOLLIN) {
         if (readCallback_) readCallback_();
     }
+    if(revents_ & EPOLLOUT) {
+        // 如果有写事件发生，调用写回调
+        if (writeCallback_) writeCallback_();
+	}
 }
 
 void Channel::disableAll()
