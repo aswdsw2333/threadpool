@@ -163,3 +163,10 @@ int32_t Buffer::readInt32() {
     retrieve(sizeof(int32_t));    // 再移动指针
     return result;
 }
+
+
+// 追加一个 int32_t 到缓冲区（自动处理网络字节序）
+void Buffer::appendInt32(int32_t x) {
+    int32_t be32 = htonl(x); // Host TO Network Long：把主机序转为大端序
+    append(reinterpret_cast<const char*>(&be32), sizeof(be32));
+}

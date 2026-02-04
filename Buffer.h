@@ -44,6 +44,8 @@ public:
 
     void append(const char* data, size_t len);
 
+
+    void appendInt32(int32_t x);
     // 确保有足够的空间写
     void ensureWritableBytes(size_t len);
 

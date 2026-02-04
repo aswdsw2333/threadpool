@@ -1,5 +1,5 @@
 ﻿#include<iostream>
-
+#include "src/game.pb.h" // 👈 引入生成的头文件
 #include"Channel.h"
 #include"epoll.h"
 #include"EventLoop.h"
@@ -43,13 +43,39 @@ void onMessage(const TcpConnectionPtr& conn, Buffer* buf, long long time) {
     }
 }
 
-// 用户逻辑：当连接建立或断开时
+
+// 假设这是你的连接回调
 void onConnection(const TcpConnectionPtr& conn) {
     if (conn->connected()) {
-        cout << "Connection UP: " << conn->name() << endl;
-    }
-    else {
-        cout << "Connection DOWN: " << conn->name() << endl;
+        std::cout << "New connection! Sending LoginResponse..." << std::endl;
+
+        // 1. 创建 Protobuf 对象并赋值
+        GameMsg::LoginResponse resp;
+        resp.set_success(true);
+        resp.set_msg("Welcome to the 211 Radar Server!");
+        resp.set_error_code(0);
+
+        // 2. 序列化 (Protobuf -> string)
+        std::string binaryData;
+        if (!resp.SerializeToString(&binaryData)) {
+            std::cerr << "Serialization failed!" << std::endl;
+            return;
+        }
+
+        // 3. 封包 (Length + Body)
+        Buffer sendBuf;
+
+        // 3.1 先写包头 (长度)
+        // 注意：这里写入的是 binaryData 的长度，不包含包头本身的4字节
+        sendBuf.appendInt32(static_cast<int32_t>(binaryData.size()));
+
+        // 3.2 再写包体 (Protobuf 数据)
+        sendBuf.append(binaryData);
+
+        // 4. 发送
+        // 修正：将 Buffer* 转为 string 发送
+        conn->send(sendBuf.retrieveAllAsString());
+        // 注意：你需要确保 TcpConnection::send 支持 std::string 参数
     }
 }
 
