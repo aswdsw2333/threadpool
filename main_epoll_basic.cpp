@@ -9,23 +9,37 @@
 // 用户逻辑：当收到消息时
 // main.cpp
 void onMessage(const TcpConnectionPtr& conn, Buffer* buf, long long time) {
-    string msg = buf->retrieveAllAsString();
+    // 循环：解决粘包
+    while (buf->readableBytes() >= 4) {
 
-    // 如果客户端发送 "GET-BIG"，服务器就回吐 50MB 数据
-    if (msg == "GET-BIG") {
-        // 👇【诊断】打印长度和内容，看看有没有隐藏字符
-        std::cout << "Server Recv: " << msg.size() << " bytes. Content: [" << msg << "]" << std::endl;
+        // 1. 偷看长度 (不移动指针！)
+        int32_t len = buf->peekInt32();
 
-        // 构造一个 50MB 的字符串 (纯内存操作，极快)
-        // 注意：这会瞬间占用服务器 50MB 内存，测试完记得重启
-        std::string hugeData(50*1024*1024, 'Z');
+        // 2. 校验长度 (防止恶意攻击)
+        if (len > 65536 || len < 0) {
+            // 这种包直接踢掉，不然会撑爆内存
+            conn->shutdown();
+            break;
+        }
 
-        std::cout << "Sending 50MB data..." << std::endl;
-        conn->send(hugeData);
-    }
-    else {
-        // 普通 Echo
-        conn->send(msg);
+        // 3. 判断是否收到了完整的包
+        // 现在的 readableBytes = Header(4) + Body(Buffer里的剩余)
+        if (buf->readableBytes() >= 4 + len) {
+
+            // 4. 终于可以读走了
+            buf->retrieve(4); // 移走头部
+
+            // 5. 取出正文
+            string msg = buf->retrieveAsString(len); // 移走 len 长度的数据
+
+            // 6. 业务回调
+            // handleMessage(msg);
+            std::cout << "Got Message: " << msg << std::endl;
+        }
+        else {
+            // 数据不够，说明分包了，break 出去等下一次数据来
+            break;
+        }
     }
 }
 

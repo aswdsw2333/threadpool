@@ -239,6 +239,13 @@ void TcpConnection::sendInLoop(const std::string& message)
     }
 }
 
+
+void TcpConnection::onMessage(Buffer* buf)
+{
+    size_t len = buf->peek();
+
+}
+
 void TcpConnection::shutdown()
 {
     // 暂时简写

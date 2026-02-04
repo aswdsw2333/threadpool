@@ -5,6 +5,8 @@
 #include <iostream>
 #include <cassert>
 #include <sys/uio.h>
+#include <cstring>      // 提供 memcpy
+
 
 class Buffer {
 public:
@@ -23,6 +25,8 @@ public:
 
     // 返回可读数据的指针
     const char* peek() const { return begin() + readerIndex_; }
+    int32_t peekInt32() const;
+    int32_t readInt32();
 
     // 核心功能：取走数据（逻辑上取走，移动 readerIndex）
     void retrieve(size_t len);
@@ -59,6 +63,7 @@ private:
     //函数返回值是「指向 const char 的指针」，意味着调用者只能读取指针指向的内容，不能修改（只读）；
     // 扩容或整理空间
     void makeSpace(size_t len);
+
 
     std::vector<char> buffer_;
     size_t readerIndex_;

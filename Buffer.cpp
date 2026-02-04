@@ -1,4 +1,5 @@
 ﻿#include "Buffer.h"
+#include <netinet/in.h>
 
 
 
@@ -85,10 +86,10 @@ ssize_t Buffer::readFd(int fd, int* saveErrno)
         // 那就不需要用 extrabuf 了，直接读到 Buffer 里就行。
         // 但通常情况下（初始 1024 bytes），我们需要这两个缓冲区。
         const int iovcnt = (writable < sizeof(extrabuff)) ? 2 : 1;
-        const ssize_t n = readv(fd, vec, iovcnt);//关键系统调用readv
+        const ssize_t n = readv(fd, vec, iovcnt);//关键系统调用readv,只读一次
         
             if (n < 0) {
-                // 🚨 关键时刻：EAGAIN 表示“读空了”
+                // 关键时刻：EAGAIN 表示“读空了”
                 if (errno == EAGAIN || errno == EWOULDBLOCK) {
                     break; // 任务完成，可以退出了
                 }
@@ -133,4 +134,32 @@ void Buffer::makeSpace(size_t len)
         writerIndex_ = readerIndex_ + readable;
     }
 
+}
+
+
+// 2. 核心：偷看一个 int32 (4字节)
+// 2. 核心：偷看一个 int32 (4字节)
+int32_t Buffer::peekInt32() const {
+    // 确保 buffer 里至少有 4 个字节，否则读也是非法内存
+    assert(readableBytes() >= sizeof(int32_t));
+
+    int32_t be32 = 0;
+
+    // 【关键点 A】内存拷贝
+    // 为什么不用 *(int32_t*)peek()？
+    // 因为 peek() 返回的地址可能不是 4 字节对齐的（在某些 CPU 上直接强转会 crash）。
+    // memcpy 是最安全、也是编译器优化最好的方式。
+    ::memcpy(&be32, peek(), sizeof(int32_t));
+
+    // 【关键点 B】字节序转换
+    // 网络字节序 -> 主机字节序
+    // 如果不转，发来的长度 "5" (0x00000005) 会被读成 "83886080" (0x05000000)
+    return ntohl(be32);
+}
+
+// 读走 int32 (移动 readerIndex 4个字节)
+int32_t Buffer::readInt32() {
+    int32_t result = peekInt32(); // 先偷看并转换
+    retrieve(sizeof(int32_t));    // 再移动指针
+    return result;
 }
