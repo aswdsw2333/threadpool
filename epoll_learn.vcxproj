@@ -76,27 +76,41 @@
   <PropertyGroup Label="UserMacros" />
   <ItemGroup>
     <ClCompile Include="Buffer.cpp" />
+    <ClCompile Include="C:\Users\aua00\Desktop\fsdownload\game.pb.cc" />
     <ClCompile Include="Channel.cpp" />
     <ClCompile Include="epoll.cpp" />
     <ClCompile Include="EventLoop.cpp" />
     <ClCompile Include="Eventloopthread.cpp" />
     <ClCompile Include="EventLoopThreadPool.cpp" />
     <ClCompile Include="main_epoll_basic.cpp" />
+    <ClCompile Include="RpcProvider.cpp" />
     <ClCompile Include="TcpConnection.cpp" />
     <ClCompile Include="Tcpserver_epoll.cpp" />
+    <ClCompile Include="UserServiceImpl.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Buffer.h" />
+    <ClInclude Include="C:\Users\aua00\Desktop\fsdownload\game.pb.h" />
     <ClInclude Include="Callbacks.h" />
     <ClInclude Include="Channel.h" />
     <ClInclude Include="epoll.h" />
     <ClInclude Include="EventLoop.h" />
     <ClInclude Include="Eventloopthread.h" />
     <ClInclude Include="EventLoopThreadPool.h" />
+    <ClInclude Include="RpcProvider.h" />
     <ClInclude Include="TcpConnection.h" />
     <ClInclude Include="Tcpserver_epoll.h" />
+    <ClInclude Include="UserServiceImpl.h" />
   </ItemGroup>
-  <ItemDefinitionGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
 </Project>

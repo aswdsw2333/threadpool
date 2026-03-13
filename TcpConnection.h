@@ -40,7 +40,6 @@ public:
     // 连接销毁时调用 (只调用一次)
     void connectDestroyed();
 
-    void onMessage(Buffer* buf);
 
 private:
     // 状态枚举
