@@ -17,6 +17,7 @@
 #include "EventLoopThreadPool.h"
 #include"Buffer.h"
 #include"TcpConnection.h"
+
 using namespace std;
 #define MAX_EVENTS 10
 #define PORT 5005
@@ -39,7 +40,6 @@ private:
 	void setnonblocking(int sockfd);
 	// 【新增】每当有一个新连接，就调用这个函数
 	void newConnection(int sockfd);
-
 	// 【新增】当连接断开时，TcpConnection 会回调这个函数
 	void removeConnection(const TcpConnectionPtr& conn);
 	void removeConnectionInLoop(const TcpConnectionPtr& conn);

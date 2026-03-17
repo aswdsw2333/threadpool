@@ -8,6 +8,9 @@
 #include "Channel.h"
 #include "Callbacks.h"
 #include <fcntl.h>
+#include<ctime>
+#include <unistd.h> // for ::shutdown, ::close
+#include <sys/socket.h> // for SHUT_WR
 // 继承 enable_shared_from_this 的原因：
 // 当 TcpConnection 正在处理事件（比如 handleRead）时，它需要把自己传递给用户回调（MessageCallback）。
 // 如果直接传 this，用户没办法把它变成 shared_ptr 来延长生命周期。
@@ -29,16 +32,17 @@ public:
 
     // 关闭连接 (对外接口)
     void shutdown();
-
+    void forceClose();
     // 设置回调函数 (由 Server 传进来)
     void setConnectionCallback(const ConnectionCallback& cb) { connectionCallback_ = cb; }
     void setMessageCallback(const MessageCallback& cb) { messageCallback_ = cb; }
     void setCloseCallback(const CloseCallback& cb) { closeCallback_ = cb; } // 【新增】
-
     // 连接建立完成时调用 (只调用一次)
     void connectEstablished();
     // 连接销毁时调用 (只调用一次)
     void connectDestroyed();
+	void refreshLastActiveTime() { last_active_time_ = std::time(nullptr); }
+	time_t getLastActiveTime() const { return last_active_time_; }
 
 
 private:
@@ -57,6 +61,8 @@ private:
     void setState(StateE s) { state_ = s; }
     void setNonBlock(int fd);
 
+    void forceCloseInLoop();
+
 private:
     EventLoop* loop_;           // 所属的 SubLoop
     const std::string name_;    // 连接名称
@@ -65,7 +71,7 @@ private:
     // 核心组件
     std::unique_ptr<Channel> channel_; // 既然是连接，必然持有一个 Channel
     int socketFd_;                     // 既然是连接，必然持有 socket
-
+    time_t last_active_time_; // 【新增】：记录最后一次收到数据的时间
     // 缓冲区 (真正的家)
     Buffer inputBuffer_;
     Buffer outputBuffer_; // 暂时还没用到，下一关会用

@@ -1,5 +1,6 @@
 ﻿#include "TcpConnection.h"
 
+
 TcpConnection::TcpConnection(EventLoop* loop,
     const std::string& nameArg,
     int sockfd)
@@ -22,6 +23,7 @@ TcpConnection::TcpConnection(EventLoop* loop,
         << " fd=" << sockfd << std::endl;
     // 设置 KeepAlive 等 socket 选项 (可选)
     setNonBlock(socketFd_);
+    last_active_time_ = ::time(nullptr); // 刚连上算作一次活跃
 }
 
 TcpConnection::~TcpConnection()
@@ -64,6 +66,7 @@ void TcpConnection::handleRead()
     int savedErrno = 0;
     // 1. 使用 Buffer 读取数据
     ssize_t n = inputBuffer_.readFd(socketFd_, &savedErrno);
+	refreshLastActiveTime(); // 刷新活跃时间
 
     if (n > 0) {
         // 2. 如果读到了数据，回调用户的 MessageCallback
@@ -241,16 +244,28 @@ void TcpConnection::sendInLoop(const std::string& message)
 
 
 
-void TcpConnection::shutdown()
-{
-    // 暂时简写
-    if (state_ == kConnected) {
-        setState(kDisconnecting);
-        // loop_->runInLoop(...)
-    }
+// 对外暴露的接口，任何线程都可以调
+void TcpConnection::shutdown() {
+    // 🚀 【核心】：所有的状态改变，必须强制扔回它自己的 EventLoop 线程去执行！
+    // 为什么要加 shared_from_this()？防止在排队的时候，TcpConnection 对象就已经被销毁了！
+    loop_->runInLoop(std::bind(&TcpConnection::shutdownInLoop, shared_from_this()));
 }
+
+// 只能在当前 IO 线程内部调用的核心逻辑
 void TcpConnection::shutdownInLoop() {
-    // ::shutdown(socketFd_, SHUT_WR);
+    // 假设你未来加了发送缓冲区，你要确保缓冲区里的数据都发完了才能断！
+    // if (!channel_->isWriting()) {
+    ::shutdown(socketFd_, SHUT_WR); // 发送 FIN 包，优雅关闭写端
+    // }
+}
+void TcpConnection::forceClose() {
+    loop_->runInLoop(std::bind(&TcpConnection::forceCloseInLoop, shared_from_this()));
+}
+// 只能在当前 IO 线程内部调用的核心逻辑
+void TcpConnection::forceCloseInLoop() {
+    std::cout << " [TcpConnection] ！force close!\n";
+    // 直接伪造一个“连接已关闭”的现场，让程序走正规的后事处理流程
+    handleClose();
 }
 
 

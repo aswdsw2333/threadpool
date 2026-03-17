@@ -147,6 +147,7 @@ void RpcProvider::onMessage(const TcpConnectionPtr& conn, Buffer* buf, long long
         //CallMethod 是 “方法调度器”—— 框架层传入 method 描述符后，它会自动匹配到对应的业务方法（如 Login），完成基类指针到具体业务类指针的转换，最终调用你手写的业务逻辑。
         // 呼叫业务代码！
         service->CallMethod(method, nullptr, request, response, done);
+        delete request;
     }
 }
 
@@ -175,14 +176,14 @@ void RpcProvider::sendRpcResponse(const TcpConnectionPtr& conn, google::protobuf
     header.set_args_size(response_data.size());
 
     std::string header_str;
-    if (!header.SerializeToString(&header_str)) {
+    if (!header.SerializeToString(&header_str)) {//将header序列化后放到header_str里面
         std::cerr << "序列化 Header 失败!" << std::endl;
         delete response;
         return;
     }
 
     // 3. 封包 (基于长度的二进制流布局)
-    // 布局设计：[Total Len (4B)] + [Header Len (4B)] + [Header Data] + [Body Data]
+    // 布局设计：[Header Len (4B)] + [Header Data] + [Body Data]
     uint32_t header_size = static_cast<uint32_t>(header_str.size());
 
     Buffer sendBuf;

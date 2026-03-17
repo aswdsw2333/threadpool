@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include"TcpConnection.h"
+#include <memory> // 在这里添加头文件
 // 全局变量加锁保护
 using namespace std;
 
@@ -12,6 +13,7 @@ Tcpserver_epoll::Tcpserver_epoll(int port):listen_fd(-1),port(PORT), max_connect
     server_add.sin_family = AF_INET;
     server_add.sin_port = htons(port);
     server_add.sin_addr.s_addr = INADDR_ANY;//设置任意端口可以过来进行通讯
+    
 }
 Tcpserver_epoll::~Tcpserver_epoll() 
 {
@@ -22,6 +24,12 @@ Tcpserver_epoll::~Tcpserver_epoll()
    }
 }
 
+
+
+
+
+
+
 void Tcpserver_epoll::start()
 {
     listen_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -31,7 +39,7 @@ void Tcpserver_epoll::start()
     }
     
     int opt = 1;//设置端口复用
-    setsockopt(listen_fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
+    setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
     
     if (bind(listen_fd, (sockaddr*)&server_add, sizeof(server_add)) < 0) {
@@ -52,26 +60,41 @@ void Tcpserver_epoll::start()
     cout << "ThreadPool started." << endl; // <--- 加这一行
     // ServerChannel 归主线程 (&loop) 管
     auto Serverchannel = make_shared<Channel>(&loop, listen_fd);
-    // 这里的引用捕获 [&] 要小心，但在 start() 阻塞在 loop.loop() 期间是安全的
-    Serverchannel->setReadCallback([&, Serverchannel]() {
-		            struct sockaddr_in client_addr;
-					socklen_t Client_sock = sizeof(client_addr);
-                    while (true)
-                    {
-                        int Client_fd = accept(listen_fd, (struct sockaddr*)&client_addr, &Client_sock);
-                        if (Client_fd < 0) {
-                            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                                // 处理完所有连接
-                                break;
-                            }
-                            else {
-                                perror("accept error");
-                                break;
-                            }
-                        }
-                        newConnection(Client_fd);
-                    }
+    // 修复陷阱2：只捕获 this，避免循环引用
+    Serverchannel->setReadCallback([this]() {
+        std::cout << "\n=> [大堂经理] 警报！门口有客人来了！开始批量接待..." << std::endl;
+        int accept_count = 0; // 记录本次到底接待了几个
 
+        while (true)
+        {
+            // 🚀 修复陷阱1：必须把长度重置放在循环内部！每次 accept 前都是干净的！
+            struct sockaddr_in client_addr;
+            socklen_t Client_sock = sizeof(client_addr);
+
+            int Client_fd = accept(listen_fd, (struct sockaddr*)&client_addr, &Client_sock);
+
+            if (Client_fd < 0) {
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    std::cout << "=> [大堂经理] 队列已彻底榨干！本次共接待了 " << accept_count << " 个客人，回去睡觉。\n" << std::endl;
+                    break;
+                }
+                else if (errno == EINTR) {
+                    // 被系统信号打断，这不是错误，必须继续！
+                    continue;
+                }
+                else {
+                    // 打印极其详细的错误，看看到底是谁阻碍了接待
+                    perror("=> [大堂经理] accept 发生致命错误");
+                    break;
+                }
+            }
+
+            accept_count++;
+            std::cout << "  -> 成功接待第 " << accept_count << " 个连接，分配 FD: " << Client_fd << std::endl;
+
+            // 调用你的业务逻辑，丢给子线程
+            newConnection(Client_fd);
+        }
         });
     // 4. 开启读监听 (告诉 epoll 开始干活)
     Serverchannel->enableReading();
@@ -123,6 +146,11 @@ void Tcpserver_epoll::newConnection(int sockfd)
     conn->setCloseCallback(
         std::bind(&Tcpserver_epoll::removeConnection, this, std::placeholders::_1)
     );
+    // 5. 【登记二】：通知分公司，把这个连接写进它的“本地小本子”！
+    // 极其关键：我们不能直接调用 ioLoop->addConnection(conn)！
+    // 因为这依然是在主线程里修改子线程的变量！
+    // 我们必须用 runInLoop 的魔法，写一张“便利贴”，让子线程自己去把它记在小本子上！
+    ioLoop->runInLoop(std::bind(&EventLoop::addConnection, ioLoop, conn));
 
     // 6. 关键一步！让 ioLoop 里的 TcpConnection 开始工作
     //    不能直接调用 connectEstablished，因为那是跨线程调用 epoll_ctl

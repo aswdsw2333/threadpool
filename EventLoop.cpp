@@ -13,23 +13,48 @@ int creatEventfd()
 	return evtfd;
 }
 
+int createTimerFd() {
+    int timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC);
+    struct itimerspec howlong;
+    howlong.it_value.tv_sec = 5;      // 5秒后第一次跳动
+    howlong.it_value.tv_nsec = 0;
+    howlong.it_interval.tv_sec = 5;   // 以后每5秒跳一次
+    howlong.it_interval.tv_nsec = 0;
+    timerfd_settime(timerfd, 0, &howlong, nullptr);
+    return timerfd;
+}
+
+
+
+
 EventLoop::EventLoop()
     : looping_(false), 
     quit_(false), 
     epoll_(new Epoll()),// 创建 Epoll 对象
 	wakeupFd_(creatEventfd()), // 创建 eventfd
+    timerFd_(createTimerFd()),//创建事件定时器
 	threadId_(std::this_thread::get_id()), // 记录当前线程 ID
 	callingPendingFunctors_(false),
-	wakeupChannel_(new Channel(this, wakeupFd_)) // 创建用于监听 wakeupFd_ 的 Channel
+	wakeupChannel_(new Channel(this, wakeupFd_)), // 创建用于监听 wakeupFd_ 的 Channel
+    timerChannel_(new Channel(this, timerFd_))
 {
 	wakeupChannel_->setReadCallback(std::bind(&EventLoop::handleRead, this));// 设置回调：当有人按铃时，执行 handleRead 把数据读走
 	wakeupChannel_->enableReading(); // 让 Channel 对 wakeupFd_ 进行读事件的监听
+
+    // 【新增 2】：配置 Timer Channel
+    timerChannel_->setReadCallback(std::bind(&EventLoop::handleTimerRead, this)); // 设置心脏跳动的回调
+    timerChannel_->enableReading(); // 让 Epoll 开始监听定时器！
 }
 
 EventLoop::~EventLoop() {
 	wakeupChannel_->disableAll();
     wakeupChannel_->remove(); // 后面会完善这个接口，现在先不管
     ::close(wakeupFd_);
+
+    // 【新增 3】：清理 Timer
+    timerChannel_->disableAll();
+    timerChannel_->remove();
+    ::close(timerFd_);
 }
 
 void EventLoop::updateChannel(Channel* channel) {
@@ -79,6 +104,55 @@ void EventLoop::wakeup()
         perror("EventLoop::wakeup() writes wrong number of bytes");
 	}
 }
+void EventLoop::addConnection(const TcpConnectionPtr& conn)
+{
+    connections_.insert(conn);
+}//新增连接
+
+void EventLoop::removeConnection(const TcpConnectionPtr& conn)
+{
+    connections_.erase(conn);
+}//消除连接
+
+// 【新增 4】：实现心脏跳动的回调函数
+void EventLoop::handleTimerRead()
+{
+    uint64_t expirations;
+    ssize_t n = ::read(timerFd_, &expirations, sizeof(expirations));
+    if (n != sizeof(expirations)) {
+        perror("EventLoop::handleTimerRead() reads wrong number of bytes");
+    }
+
+    std::cout << "\n[searching....]EventLoop " << threadId_
+        << "searching for its" << connections_.size() << " connections..." << std::endl;
+
+    time_t now = ::time(nullptr);
+    int timeout_seconds = 5; // 设定：超过 10 秒没动静的，杀无赦！
+
+    // 遍历生死簿，开启无情踢人模式
+    // 【架构师避坑】：在 C++ 容器遍历中删除元素，一定要正确处理迭代器！
+    for (auto it = connections_.begin(); it != connections_.end(); ) {
+        TcpConnectionPtr conn = *it;
+
+        if (now - conn->getLastActiveTime() > timeout_seconds) {
+            std::cout << "  find zoobies connections! cut down!\n";
+
+            // 1. 底层掐断 TCP 连接
+            // (视你的网络库 API 而定，可能是 forceClose() 或 shutdown())
+            // 这会导致底层触发 EPOLLHUP/EPOLLRDHUP，进入正常的销毁流程
+            conn->forceClose();
+
+            // 2. 从生死簿中彻底除名，并将迭代器安全地推向下一个
+            it = connections_.erase(it);
+        }
+        else {
+            // 这个客户还活着，检查下一个
+            ++it;
+        }
+    }
+}
+
+
 
 void EventLoop::handleRead()
 {
@@ -125,4 +199,7 @@ void EventLoop::doPendingFunctors()
     }
 	callingPendingFunctors_ = false;
 }
+
+
+
 
